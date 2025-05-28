@@ -1,0 +1,8 @@
+# Regla principal para asignar revisores a los archivos .properties
+# *.properties @procesarmx/equipo_control_de_liberaciones
+
+# Se deben excluir archivos específicos pero que están relacionados con la regla principal de properties
+!**/*test*.properties
+
+# Reglas generales para otros archivos
+*.yml @procesarmx/arquitectura_software

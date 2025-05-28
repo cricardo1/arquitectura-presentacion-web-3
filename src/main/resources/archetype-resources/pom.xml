@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>mx.com.procesar.servicios</groupId>
+		<artifactId>pom-servicios</artifactId>
+		<version>2.3.0-SNAPSHOT</version>
+	</parent>
+
+	<!-- Este POM no tiene dependencia de un POM padre externo para evitar errores de resolución -->
+	<groupId>${groupId}</groupId>
+	<artifactId>${artifactId}</artifactId>
+	<version>${version}</version>
+	<packaging>pom</packaging>
+
+	<name>${projectName}</name>
+	<description>Proyecto REST con arquitectura de tres capas</description>
+
+	<developers>
+		<developer>
+			<name>Gerencia Servicios Normativos</name>
+			<email>GERENCIADESARROOLLONORMATIVO@inet.procesar.com.mx</email>
+			<organization>Procesar S A de C V</organization>
+		</developer>
+	</developers>
+
+	<properties>
+		<project.version>${version}</project.version>
+		<java.version>11</java.version>
+		<maven.compiler.source>11</maven.compiler.source>
+		<maven.compiler.target>11</maven.compiler.target>
+		<maven.compiler.release>11</maven.compiler.release>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<!-- módulos -->
+	<modules>
+		<module>${rootArtifactId}-persistencia</module>
+		<module>${rootArtifactId}-servicios</module>
+		<module>${rootArtifactId}-presentacion</module>
+	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+
+			<!-- Spring Boot BOM -->
+			<dependency>
+				<groupId>${groupId}.${projectName.toLowerCase()}</groupId>
+				<artifactId>${rootArtifactId}-persistencia</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${groupId}.${projectName.toLowerCase()}</groupId>
+				<artifactId>${rootArtifactId}-servicios</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${groupId}.${projectName.toLowerCase()}</groupId>
+				<artifactId>${rootArtifactId}-presentacion</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<release>11</release>
+					<source>11</source>
+					<target>11</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<configuration>
+					<failOnMissingWebXml>false</failOnMissingWebXml>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<configuration>
+					<updateReleaseInfo>true</updateReleaseInfo>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<configuration>
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>
+			<!-- JaCoCo -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+						<configuration>
+							<destFile>${project.build.directory}/jacoco.exec</destFile>
+						</configuration>
+					</execution>
+					<execution>
+						<id>prepare-package</id>
+						<goals>
+							<goal>report</goal>
+						</goals>
+						<phase>prepare-package</phase>
+						<configuration>
+							<dataFile>${project.build.directory}/jacoco.exec</dataFile>
+							<outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>coverage</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>prepare-agent</id>
+								<goals>
+									<goal>prepare-agent</goal>
+								</goals>
+								<configuration>
+									<destFile>${project.build.directory}/jacoco.exec</destFile>
+								</configuration>
+							</execution>
+							<execution>
+								<id>prepare-package</id>
+								<goals>
+									<goal>report</goal>
+								</goals>
+								<phase>prepare-package</phase> <!-- Genera el reporte de cobertura -->
+								<configuration>
+									<!-- Directorio para reportes de JaCoCo -->
+									<dataFile>${project.build.directory}/jacoco.exec</dataFile>
+									<outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!-- Maven Surefire Plugin for Unit Tests -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<excludes>
+								<exclude>**/IT*.java</exclude>
+							</excludes>
+						</configuration>
+					</plugin>
+
+					<!-- Maven Failsafe Plugin for Integration Tests -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-failsafe-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>integration-tests</id>
+								<goals>
+									<goal>integration-test</goal>
+									<goal>verify</goal>
+								</goals>
+								<configuration>
+									<forkedProcessExitTimeoutInSeconds>60</forkedProcessExitTimeoutInSeconds>
+									<forkCount>1</forkCount>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+	<distributionManagement>
+		<repository>
+			<id>snapshots</id>
+			<url>http://nexus.procesar.com.mx/nexus/repository/maven-snapshots/</url>
+		</repository>
+	</distributionManagement>
+</project>

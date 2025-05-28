@@ -1,0 +1,916 @@
+name: pipelineWebDev
+# on:
+#   workflow_dispatch:
+# #Se usa workflow_dispatch cuando se quiere ejecutar por separado el pipeline (sin aprobaciones)
+
+on:
+  pull_request:
+     branches:
+       - develop
+     types:
+       - closed
+ #Se usaría este bloque cuando se necesitan las aprobaciones y se inicia un Pull Request para juntar cambios
+
+
+jobs:
+  
+  approval:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check if PR is merged and approved
+      id: check_approval
+      run: |
+          echo "Checking if PR is merged and approved..."
+          if [[ ${{ github.event_name }} == 'pull_request' && ${{ github.event.pull_request.merged }} == true && ${{ github.event.pull_request.base.ref }} == 'develop' ]]; then
+            echo "Pull request ha sido aprobado.. continuará el flujo de despliegue hacia el ambiente de Desarrollo."
+            echo "approved=true" >> $GITHUB_OUTPUT
+            echo "approved=true" >> $GITHUB_ENV
+          else
+            echo "Pull Request no ha sido aprobado. Contacte al Lider de Desarrollo"
+            echo "approved=false" >> $GITHUB_OUTPUT
+            echo "approved=false" >> $GITHUB_ENV
+          fi
+
+  build:
+    needs: approval
+    runs-on: ubuntu-latest
+    #environment: Desarrollo
+
+    outputs:
+         GROUP_OUT: ${{ steps.var_setup.outputs.GROUP_ID }}
+         ARTIFACT_OUT: ${{ steps.var_setup.outputs.ARTIFACT_ID }}
+         VERSION_OUT: ${{ steps.var_setup.outputs.VERSION }}
+         NAME_OUT: ${{ steps.var_setup.outputs.NAME_ID }}
+         BRANCH_OUT: ${{ steps.var_setup.outputs.BRANCH_NAME }}
+         REPOSITORY_OUT: ${{ steps.var_setup.outputs.REPOSITORY_NAME }}
+         
+    strategy:
+      matrix:
+        java-version: ['8']  # Definimos una matriz con las versiones de Java ['8', '11']
+        maven-version : ['3.5'] # Definimos una matriz con las versiones de Maven ['3.5', '3.8.1']
+
+    steps:
+    
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: read_pom_xml
+        id: var_setup
+        run: |
+          # USE GREP TO EXTRACT THE LINE WE NEED. SELECT SECOND OCCURENCE WITH SED. THEN CLEAN HTML TAGS WITH SED
+          MY_GROUP_ID_LOCAL=$(grep -m2 "<groupId>" ./pom.xml | sed -n 2p | sed 's/^.<groupId>//' | sed 's/<\/groupId>.$//')
+          MY_ARTIFACT_ID_PRE=$(grep -m2 "<artifactId>" ./pom.xml |  sed -n 2p | sed 's/^.<artifactId>//' | sed 's/<\/artifactId>.$//')
+          VERSION_LOCAL=$(grep -m2 "<version>" ./pom.xml |  sed -n 2p | sed 's/^.<version>//' | sed 's/<\/version>.$//')
+          MY_ARTIFACT_ID_LOCAL="${MY_ARTIFACT_ID_PRE}-presentacion"
+          NAME_LOCAL="${MY_ARTIFACT_ID_LOCAL}-${VERSION_LOCAL}.war"
+          REPOSITORY_NAME=$(echo "${GITHUB_REPOSITORY}" | sed 's/.*\///')
+          
+          #se utilizaria cuando haga el pull request approval exclusivamente, caso contrario, debe estar en comentario
+          BRANCH_LOCAL=$(echo "${{ github.event.pull_request.head.ref }}")  
+          
+          #se utiliza github_ref_name en ejecucion con workflow_dispatch, no usar en build y deploy con pull request
+          #BRANCH_LOCAL=$(echo "${GITHUB_REF_NAME}")  
+          
+          echo "MyGroupID=$MY_GROUP_ID_LOCAL and more"
+          echo "MyArtifactID=$MY_ARTIFACT_ID_LOCAL and more"
+          echo "Version=$VERSION_LOCAL and more"
+          echo "MyName = $NAME_LOCAL"
+          echo "Branch = $BRANCH_LOCAL"
+          echo "RepositoryName = $REPOSITORY_NAME"
+          
+          # SET VARIABLES TO GITHUB_ENVIRONMENT AND OUTPUT
+          echo "GROUP_ID=$(echo $MY_GROUP_ID_LOCAL)" >> $GITHUB_OUTPUT
+          echo "GROUP_ID=$(echo $MY_GROUP_ID_LOCAL)" >> $GITHUB_ENV
+          echo "ARTIFACT_ID=$(echo $MY_ARTIFACT_ID_LOCAL)" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_ID=$(echo $MY_ARTIFACT_ID_LOCAL)" >> $GITHUB_ENV
+          echo "VERSION=$(echo $VERSION_LOCAL)" >> $GITHUB_OUTPUT
+          echo "VERSION=$(echo $VERSION_LOCAL)" >> $GITHUB_ENV
+          echo "NAME_ID=$(echo $NAME_LOCAL)" >> $GITHUB_OUTPUT
+          echo "NAME_ID=$(echo $NAME_LOCAL)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=$(echo $BRANCH_LOCAL)" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=$(echo $BRANCH_LOCAL)" >> $GITHUB_ENV
+          echo "REPOSITORY_NAME=$(echo $REPOSITORY_NAME)" >> $GITHUB_OUTPUT
+          echo "REPOSITORY_NAME=$(echo $REPOSITORY_NAME)" >> $GITHUB_ENV
+
+      - name: Download settings.xml
+        run: |
+            mkdir -p ~/.m2/repository
+            curl -o ~/.m2/repository/settings.xml -u ${{ secrets.NEXUS_USERNAME }}:${{ secrets.NEXUS_TOKEN }} ${{ secrets.NEXUS_SETTINGS }}
+            cat ~/.m2/repository/settings.xml
+      
+### Inicia bloque para escanear con SonarQube
+### Configuracion general
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+### Inicia construcción y carga de Artefacto generado
+      - name: Build artifact
+        run: |
+           mvn -s ~/.m2/repository/settings.xml clean install -DskipTests=true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.REPOSITORY_NAME }}-web-${{ env.BRANCH_NAME }}.war
+          path: /home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}-presentacion/target/*.war
+          retention-days: 1
+
+### Termina bloque de construcción y carga de Artefacto generado
+
+### Inicia seccion de cobertura
+      
+      - name: Run JaCoCo and Cobertura 
+        run: |
+          mvn clean verify -Pcoverage \
+          -s ~/.m2/repository/settings.xml \
+          -Dsonar.projectKey=${{ env.REPOSITORY_NAME }} \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.token=${{ secrets.SONAR_TOKEN }} > coverage-sonar.log || true
+
+          mvn cobertura:cobertura \
+          -s ~/.m2/repository/settings.xml \
+          -Dsonar.projectKey=${{ env.REPOSITORY_NAME }} \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+          
+      - name: Finding xml files
+        run: |
+          echo "jacoco.xml"
+          find . -name 'jacoco.xml'
+          echo "coverage.xml"
+          find . -name 'coverage.xml'
+         
+      - name: Run SonarQube analysis
+        run: |
+          mvn -s ~/.m2/repository/settings.xml -B sonar:sonar \
+          -Dsonar.projectKey=${{ env.REPOSITORY_NAME }} \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+          -Dsonar.coverage.jacoco.xmlReportPaths=/home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}-persistencia/target/site/jacoco-aggregate/jacoco.xml \
+          -Dsonar.coverage.cobertura.xmlReportPaths=**/target/site/cobertura/coverage.xml \
+          -Dsonar.scm.exclusions.disabled=false
+        # Este paso ejecuta el análisis de SonarQube usando los informes generados en paso anterior.
+
+### Termina seccion de cobertura
+
+### Inicia chequeo de porcentaje de cobertura para verificar si pasa o no el scaneo de Sonar
+
+      - name: Check SonarQube quality profile and coverage value
+        run: |
+          # Extrae el valor de projectStatus
+          quality_gate_status=$(curl -s "https://apidocs.procesar.com.mx/sonar8/api/qualitygates/project_status?projectKey=${{ env.REPOSITORY_NAME }}" \
+             -u "${{ secrets.SONAR_TOKEN }}":)
+
+          project_status=$(echo "$quality_gate_status" | grep -o '"status":"[^"]*"' | head -n 1 | cut -d ':' -f 2 | tr -d '"')
+          echo "Quality gate del proyecto es: $project_status"
+          
+          # Extrae el valor del porcentaje de cobertura
+          response=$(curl -s "https://apidocs.procesar.com.mx/sonar8/api/measures/component?component=${{ env.REPOSITORY_NAME }}&metricKeys=coverage" \
+            -u "${{ secrets.SONAR_TOKEN }}":) 
+            
+          coverage=$(echo "$response" | jq -r '.component.measures[0].value')
+          echo "Porcentaje de cobertura del proyecto es: $coverage%"
+
+          limite=${{ secrets.SONAR_LIMITE_COBERTURA }}     
+          
+          #Segun definicion de Arq de Software, solo si ambos pasan: quality gate y cobertura, entonces el proyecto está bien y continua el flujo
+          #if (( $(echo "$coverage >= $limite" | bc -l) )); then
+          if (( $(echo "$coverage >= $limite" | bc -l) && ($project_status == "OK") )); then
+              echo "Coverage y Quality Gates check passed."
+              echo "no-ejecutar-siguientes-pasos=false" >> $GITHUB_OUTPUT
+              echo "no-ejecutar-siguientes-pasos=false" >> $GITHUB_ENV
+          else
+            echo "Coverage y Quality Gates check failed."
+            echo "no-ejecutar-siguientes-pasos=true" >> $GITHUB_OUTPUT
+            echo "no-ejecutar-siguientes-pasos=true" >> $GITHUB_ENV
+          fi
+          #Este paso verifica el resultado del análisis de SonarQube, porcentajes de cobertura y quality gates.
+
+      - name: Pipeline ends due to SonarQube fails by coverage limit
+        run: |
+          echo "La cobertura se encuentra por debajo del límite permitido en SonarQube. Corregir en rama volatil y volver a solicitar PR para ejecutar pipelineDev.yml"
+          exit 1
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'true' }}   
+        #Este paso se ejecuta solo si el paso anterior dio error y detiene el pipeline, caso contrario, sigue la ejecución.
+
+### Termina bloque chequeo de porcentaje de cobertura para verificar si pasa o no el scaneo de Sonar
+
+      - name: Finding and compressing coverage-sonar files
+        run: |
+          cd /home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}
+          cat coverage-sonar.log
+          tar -czf coverage-sonar.tar.gz coverage-sonar.log
+                   
+      - name: Upload JaCoCo coverage file
+        uses: actions/upload-artifact@v4
+        with:
+          name: JaCoCo-report
+          path: |
+            /home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}-persistencia/target/site/jacoco/jacoco.xml
+        # Sube el archivo comprimido de informes de JaCoCo como un artefacto para su uso posterior.
+
+      - name: Upload Coverage-sonar log
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coverage-sonar-log
+          path: |
+            /home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/coverage-sonar.tar.gz
+        # Sube el archivo comprimido de log de la ejecucion.     
+
+      - name: Upload Surefire-reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: Surefire-reports
+          path: |
+            /home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}-servicios/target/surefire-reports/
+        # Sube el archivo de surefire-reports por las pruebas unitarias.  
+
+      - name: Upload Failsafe-reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: Failsafe-reports
+          path: |
+            /home/runner/work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}-persistencia/target/failsafe-reports/
+        # Sube el archivo de failsafe por las pruebas de integracion
+        
+### Termina escaneo con Sonarqube y carga de archivos
+
+### Inicia bloque de analisis con Fortify
+
+      # - name: Setup Java for Fortify
+      #   uses: actions/setup-java@v1
+      #   with:
+      #     java-version: 11
+      #   if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+
+      #  ### Set up Fortify ScanCentral Client ###
+      # - name: Download Fortify ScanCentral Client
+      #   uses: fortify/gha-setup-scancentral-client@v1
+      #   with:
+      #     version: 22.2.0 
+      #     client-auth-token: ${{ secrets.CLIENT_AUTH_TOKEN }} # ScanCentral Controller requires client authentication
+      #   if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+
+      # - name: Setting FQDN address
+      #   run: |
+      #     export RUNNER_ALLOW_RUNASROOT="1"
+      #     export AGENT_ALLOW_RUNASROOT="1"
+      #     sudo echo "172.21.66.132 pcse02b2c20401" | sudo tee -a /etc/hosts
+      #   if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}          
+      
+      ### Run Fortify ScanCentral Client ###
+      # Update BUILD_OPTS based on the ScanCentral Client documentation and your project's included tech stack(s).
+      # ScanCentral Client will download dependencies for maven, gradle and msbuild projects.
+       
+      #- name: Perform SAST Scan
+      #  run: |
+      #    scancentral -url ${SC_CONTROLLER_URL} start $BUILD_OPTS \
+      #    -upload -application $APPLICATION \
+      #    -version $VERSION \
+      #    -uptoken $SSC_UPLOAD_TOKEN
+      #  env:
+      #    SC_CONTROLLER_URL: ${{ secrets.SC_CONTROLLER_URL }}
+      #    SSC_UPLOAD_TOKEN: ${{ secrets.SSC_UPLOAD_TOKEN }}
+      #    APPLICATION: "validaciondocumentoidentificacion1"
+      #    VERSION: "1.0"
+      #    BUILD_OPTS: "-bt mvn"
+      #  if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+####
+      #- name: Chequear log de Fortify
+      #  if: ${{ always() }}
+      #  run: |
+      #    cd /home/runner/.fortify/scancentral-22.2.0/log
+      #    chmod -R 777 /home/runner/.fortify/scancentral-22.2.0/log
+      #    ls -la
+      #    cat /home/runner/.fortify/scancentral-22.2.0/log/launcher.log
+      #  if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+
+### Termina bloque de analisis con Fortify
+          
+  deploy:
+    needs: build 
+    runs-on: self-hosted
+    # environment: Desarrollo
+
+    outputs:
+         GROUP_OUT: ${{ steps.var_setup.outputs.GROUP_ID }}
+         ARTIFACT_OUT: ${{ steps.var_setup.outputs.ARTIFACT_ID }}
+         VERSION_OUT: ${{ steps.var_setup.outputs.VERSION }}
+         NAME_OUT: ${{ steps.var_setup.outputs.NAME_ID }}
+         #BRANCH_OUT: ${{ steps.var_setup.outputs.BRANCH_NAME }}
+         REPOSITORY_OUT: ${{ steps.var_setup.outputs.REPOSITORY_NAME }}
+         #NEWVERSION: ${{ steps.version-plus.outputs.NEWVERSION }}
+         
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Crear directorio de descarga
+        run: |
+          mkdir -p downloaded-artifacts
+
+      - name: read_pom_xml and setting variables
+        id: var_setup
+        run: |
+          # USE GREP TO EXTRACT THE LINE WE NEED. SELECT SECOND OCCURENCE WITH SED. THEN CLEAN HTML TAGS WITH SED
+          GROUP_ID_LOCAL=$(grep -m2 "<groupId>" ./pom.xml | sed -n 2p | sed 's/^.<groupId>//' | sed 's/<\/groupId>.$//')
+          ARTIFACT_ID_PRE=$(grep -m2 "<artifactId>" ./pom.xml |  sed -n 2p | sed 's/^.<artifactId>//' | sed 's/<\/artifactId>.$//')
+          VERSION_LOCAL=$(grep -m2 "<version>" ./pom.xml |  sed -n 2p | sed 's/^.<version>//' | sed 's/<\/version>.$//')
+          ARTIFACT_ID_LOCAL="${ARTIFACT_ID_PRE}-presentacion"
+          NAME_LOCAL="${ARTIFACT_ID_LOCAL}-${VERSION_LOCAL}.war"
+          REPOSITORY_NAME=$(echo "${GITHUB_REPOSITORY}" | sed 's/.*\///')
+          
+          #se utilizaria cuando haga el pull request approval exclusivamente, caso contrario, debe estar en comentario
+          BRANCH_LOCAL=$(echo "${{ github.event.pull_request.head.ref }}")  
+          
+          #se utiliza github_ref_name en ejecucion con workflow_dispatch, no usar en build y deploy con pull request
+          #BRANCH_LOCAL=$(echo "${GITHUB_REF_NAME}")  
+          
+          echo "GroupID=$GROUP_ID_LOCAL and more"
+          echo "ArtifactID=$ARTIFACT_ID_LOCAL and more"
+          echo "Version=$VERSION_LOCAL and more"
+          echo "Name = $NAME_LOCAL"
+          echo "Branch = $BRANCH_LOCAL"
+          echo "RepositoryName = $REPOSITORY_NAME"
+          
+          # SET VARIABLES TO GITHUB_ENVIRONMENT AND OUTPUT
+          echo "GROUP_ID=$(echo $GROUP_ID_LOCAL)" >> $GITHUB_OUTPUT
+          echo "GROUP_ID=$(echo $GROUP_ID_LOCAL)" >> $GITHUB_ENV
+          echo "ARTIFACT_ID=$(echo $ARTIFACT_ID_LOCAL)" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_ID=$(echo $ARTIFACT_ID_LOCAL)" >> $GITHUB_ENV
+          echo "VERSION=$(echo $VERSION_LOCAL)" >> $GITHUB_OUTPUT
+          echo "VERSION=$(echo $VERSION_LOCAL)" >> $GITHUB_ENV
+          echo "NAME_ID=$(echo $NAME_LOCAL)" >> $GITHUB_OUTPUT
+          echo "NAME_ID=$(echo $NAME_LOCAL)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=$(echo $BRANCH_LOCAL)" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=$(echo $BRANCH_LOCAL)" >> $GITHUB_ENV
+          echo "REPOSITORY_NAME=$(echo $REPOSITORY_NAME)" >> $GITHUB_OUTPUT
+          echo "REPOSITORY_NAME=$(echo $REPOSITORY_NAME)" >> $GITHUB_ENV
+
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.REPOSITORY_NAME }}-web-${{ env.BRANCH_NAME }}.war
+          path: downloaded-artifacts
+
+      - name: List downloaded artifact, cp artifact w/branch
+        run: |
+          cd /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts
+          ls -la
+          cp ${{ env.REPOSITORY_NAME }}-web-1.0.0.war ${{ env.REPOSITORY_NAME }}-web-${{ env.BRANCH_NAME }}.war
+          ls -la
+          
+      - name: Setting Java
+        run: |
+          echo "JAVA_HOME=/opt/middleware/jvm/jdk1.8.0_211" >> $GITHUB_ENV
+          echo "PATH=$JAVA_HOME/bin:$PATH" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Check properties file on runner
+        run: |
+          cd /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades
+          ls -la
+          pwd
+
+### Inicia bloque para implementación de procesamiento de archivo properties y archivo log4j2.xml
+
+
+      - name: Check secret value (properties)
+        id: check_secret
+        run: |
+          if [[ "${{ secrets.ARCHIVO_PROPERTIES_DEV }}" == "N" ]]; then
+            echo "La variable tiene el valor de 'N'. Significa que NO se realizará la copia del archivo. Continua el flujo"
+            echo "copia_archivo_properties=false" >> $GITHUB_OUTPUT
+            echo "copia_archivo_properties=false" >> $GITHUB_ENV
+          else
+            echo "Se procede a la copia del archivo Properties"
+            echo "copia_archivo_properties=true" >> $GITHUB_OUTPUT
+            echo "copia_archivo_properties=true" >> $GITHUB_ENV
+          fi
+
+      - name: Install sshpass (properties)
+        run: |
+          sudo yum install -y sshpass
+        if: ${{ env.copia_archivo_properties == 'true' }}
+
+      - name: Update ssh_config and restart SSH (properties)
+        run: |
+          cat /etc/ssh/ssh_config
+          sudo sed -i 's/^.*RhostsRSAAuthentication.*$/# RhostsRSAAuthentication yes/' /etc/ssh/ssh_config
+          sudo systemctl restart sshd
+          cat /etc/ssh/ssh_config
+        if: ${{ env.copia_archivo_properties == 'true' }}          
+
+### Inicia bloque UNIFICADO para implementacion de procesamiento de archivo properties, log4j2 y seteo de entorno
+### Usar este bloque si la infraestructura destino lo permite, primero debe ser analizado y aprobado por Arquitectura de Software
+### Son excluyentes: se debe usar solo uno de los dos bloques, ya sea el unificado o el individual
+
+      - name: Set list of servers
+        id: set_servers
+        run: |
+          echo "server_password=${{ secrets.AP_PASSWORD_DEV }}" >> $GITHUB_ENV
+          echo "server_user=${{ secrets.AP_USERNAME_DEV }}" >> $GITHUB_ENV
+          echo "server_ruta=${{ secrets.AP_RUTA_DEV }}" >> $GITHUB_ENV
+          echo "SERVER1=${{ secrets.AP_SERVER_DEV1 }}" >> $GITHUB_ENV
+          echo "SERVER2=${{ secrets.AP_SERVER_DEV2 }}" >> $GITHUB_ENV
+          #echo "SERVER(#)=${{ secrets.AP_SERVER_DEV(#) }}" >> $GITHUB_ENV  -- ir agregando líneas conforme sea la cantidad de servidores en el cluster
+
+      - name: Copy files and execute commands on multiple servers
+        run: |
+          # Obtener la lista de servidores desde GITHUB_ENV
+          servers=($SERVER1 $SERVER2)  # Lista de servidores, agregar mas servidores SERVER(#) conforme sea la configuración del cluster
+
+          # Iterar sobre la lista de servidores con un bucle for
+          for server_address in "${servers[@]}"; do
+            echo "Procesando servidor: $server_address"
+
+            # Copiar archivo properties
+            server_result=$(sshpass -p $server_password ssh $server_user@$server_address '[ -f $server_ruta/${{ env.REPOSITORY_NAME }}.properties ] && echo "SI" || echo "NO"')
+            echo "Resultado_${server}: $server_result"
+            
+            sshpass -p $server_password scp /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades/${{ env.REPOSITORY_NAME }}.properties $server_user@$server_address:$server_ruta
+            echo "Archivo properties actualizado exitosamente en $server_address"
+            
+            # Copiar log4j2.xml
+            server_result_log4j=$(sshpass -p $server_password ssh $server_user@$server_address '[ -f $server_ruta/log4j2/${{ env.REPOSITORY_NAME }}-log4j2.xml ] && echo "SI" || echo "NO"')
+            echo "Resultado_${server}_log4j: $server_result_log4j"
+            
+            sshpass -p $server_password scp /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades/log4j2/${{ env.REPOSITORY_NAME }}-log4j2.xml $server_user@$server_address:$server_ruta/log4j2
+            echo "Archivo log4j2.xml actualizado exitosamente en $server"
+
+            # Ejecutar el script de configuración en el servidor
+            OUTPUT=$(sshpass -p $server_password ssh -o StrictHostKeyChecking=no $server_user@$server_address '
+              echo "Directorio actual:"; pwd;
+              echo "Variables de entorno:"; env;
+              echo "Ejecutando el script:"; bash ${{ secrets.WEBLOGIC_RUTA_SET_DEV }}/setWLSEnv.sh 2>&1
+            ')
+            echo "$OUTPUT"
+          done
+        if: ${{ env.copia_archivo_properties == 'true' }} 
+
+### Termina bloque UNIFICADO para implementacion de procesamiento de archivo properties, log4j2 y seteo de entorno
+
+
+### Inicia bloque INDIVIDUAL para implementacion de procesamiento de archivo properties, log4j2 y seteo de entorno POR SERVIDOR
+### Usar este bloque si la infraestructura destino lo permite, primero debe ser analizado y aprobado por Arquitectura de Software
+### Son excluyentes: se debe usar solo uno de los dos bloques, ya sea el unificado o el individual
+
+### Copying in remote server 1
+
+      # - name: Copy file properties on remote server 1 (properties)
+      #   run: |
+      #     server1=$(sshpass -p ${{ secrets.AP_PASSWORD_DEV }} ssh ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV1 }} '[ -f ${{ secrets.AP_RUTA_DEV }}/${{ env.REPOSITORY_NAME }}.properties ] && echo "SI" || echo "NO"')
+      #     echo "Resultado_server1: $server1"
+          
+      #     sshpass -p ${{ secrets.AP_PASSWORD_DEV }} scp /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades/${{ env.REPOSITORY_NAME }}.properties ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV1 }}:${{ secrets.AP_RUTA_DEV }}
+      #     echo "Archivo properties actualizado exitosamente en servidor 1"
+      #   if: ${{ env.copia_archivo_properties == 'true' }} 
+
+      # - name: Copy file log4j2.xml on remote server 1
+      #   run: |
+      #     server1=$(sshpass -p ${{ secrets.AP_PASSWORD_DEV }} ssh ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV1 }} '[ -f ${{ secrets.AP_RUTA_DEV }}/log4j2/${{ env.REPOSITORY_NAME }}-log4j2.xml ] && echo "SI" || echo "NO"')
+      #     echo "Resultado_server1: $server1"
+          
+      #     sshpass -p ${{ secrets.AP_PASSWORD_DEV }} scp /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades/log4j2/${{ env.REPOSITORY_NAME }}-log4j2.xml ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV1 }}:${{ secrets.AP_RUTA_DEV }}/log4j2
+      #     echo "Archivo log4j2.xml actualizado exitosamente en servidor 1"
+      #   if: ${{ env.copia_archivo_properties == 'true' }} 
+
+      # - name: Execute setting environment on remote server 1
+      #   run: |
+      #     OUTPUT=$(sshpass -p ${{ secrets.AP_PASSWORD_DEV }} ssh -o StrictHostKeyChecking=no ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV1 }} '
+      #       # Imprimir el directorio actual
+      #       echo "Directorio actual:";
+      #       pwd;
+      
+      #       # Imprimir variables de entorno
+      #       echo "Variables de entorno:";
+      #       env;
+      
+      #       # Ejecutar el script
+      #       echo "Ejecutando el script:";
+      #       bash ${{ secrets.WEBLOGIC_RUTA_SET_DEV }}/setWLSEnv.sh 2>&1
+      #     ')
+      #     echo "$OUTPUT"
+
+### Copying in remote server 2
+
+      # - name: Copy file properties on remote server 2 (properties)
+      #   run: |
+      #     server2=$(sshpass -p ${{ secrets.AP_PASSWORD_DEV }} ssh ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV2 }} '[ -f ${{ secrets.AP_RUTA_DEV }}/${{ env.REPOSITORY_NAME }}.properties ] && echo "SI" || echo "NO"')
+      #     echo "Resultado_server2: $server2"
+          
+      #     sshpass -p ${{ secrets.AP_PASSWORD_DEV }} scp /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades/${{ env.REPOSITORY_NAME }}.properties ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV2 }}:${{ secrets.AP_RUTA_DEV }}
+      #     echo "Archivo properties actualizado exitosamente en servidor 2"
+      #   if: ${{ env.copia_archivo_properties == 'true' }} 
+
+      # - name: Copy file log4j2.xml on remote server 2
+      #   run: |
+      #     server2=$(sshpass -p ${{ secrets.AP_PASSWORD_DEV }} ssh ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV2 }} '[ -f ${{ secrets.AP_RUTA_DEV }}/log4j2/${{ env.REPOSITORY_NAME }}-log4j2.xml ] && echo "SI" || echo "NO"')
+      #     echo "Resultado_server2: $server2"
+          
+      #     sshpass -p ${{ secrets.AP_PASSWORD_DEV }} scp /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/propiedades/log4j2/${{ env.REPOSITORY_NAME }}-log4j2.xml ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV2 }}:${{ secrets.AP_RUTA_DEV }}/log4j2
+      #     echo "Archivo log4j2.xml actualizado exitosamente en servidor 2"
+      #   if: ${{ env.copia_archivo_properties == 'true' }}   
+
+      # - name: Execute setting environment on remote server 2
+      #   run: |
+      #     OUTPUT=$(sshpass -p ${{ secrets.AP_PASSWORD_DEV }} ssh -o StrictHostKeyChecking=no ${{ secrets.AP_USERNAME_DEV }}@${{ secrets.AP_SERVER_DEV2 }} '
+      #       # Imprimir el directorio actual
+      #       echo "Directorio actual:";
+      #       pwd;
+      
+      #       # Imprimir variables de entorno
+      #       echo "Variables de entorno:";
+      #       env;
+      
+      #       # Ejecutar el script
+      #       echo "Ejecutando el script:";
+      #       bash ${{ secrets.WEBLOGIC_RUTA_SET_DEV }}/setWLSEnv.sh 2>&1
+      #     ')
+      #     echo "$OUTPUT"
+
+### Termina bloque INDIVIDUAL para implementacion de procesamiento de archivo properties, log4j2 y seteo de entorno POR SERVIDOR
+
+
+### Inicia bloque para el despliegue hacia el weblogic Desarrollo, considerando los escenarios:
+
+  ### Escenario 1: Artefacto no existe, primera vez que se despliega, version 1.0.0
+  ### Escenario 2: No existe la version y se desconoce el motivo, pero el artefacto está desplegado, se corrije y se genera version 1.0.0
+  ### Escenario 3: Artefacto si existe y tiene version, se usa version semantico para generar nueva version para el despliegue
+  ### Al final se considera el pedido de Arq de Software de que solo se mantenga en Nexus Snapshots la ultima version (NO la colección de versiones)
+      
+      - name: Checking Artifact exists
+        id: artifact-version
+        run: |
+          set -x
+          salida=$(java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+          -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+          -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+          -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+          -listapps | grep "${{ env.REPOSITORY_NAME }}-presentacion" | sed 's/^$/0/' )
+
+          echo "OUTPUT=$salida" >> $GITHUB_OUTPUT
+          echo "OUTPUT=$salida" >> $GITHUB_ENV
+          echo "EXIT_CODE=${?}" >> $GITHUB_OUTPUT
+          echo "EXIT_CODE=${?}" >> $GITHUB_ENV
+
+      - name: Artifact does not exist, version 1.0.0, Nexus and deploy (Escenarios 1, 2 y 3)
+        id: check-exit
+        run: |
+            if [[ "${{ env.EXIT_CODE }}" -eq 0 && -z "${{ env.OUTPUT }}" ]]; then
+            # este codigo es cuando el artefacto no existe en Weblogic, sube a Nexus con 1.0.0 y despliega (Escenario 1)
+              echo "Command executed successfully"
+              echo "La aplicación no se encontró, se sube a Nexus con version 1.0.0 y realiza primer deploy a Weblogic Desarrollo "
+
+              echo "Inicia carga de artefacto a Nexus Snapshots" 
+              repo_full_name="${{ github.repository }}"
+              repo_name=$(echo "$repo_full_name" | cut -d '/' -f 2)
+              ruta_target="/opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/"
+              cd $ruta_target
+              mvn deploy:deploy-file \
+                -Dfile=${{ env.REPOSITORY_NAME }}-web-1.0.0.war \
+                -DrepositoryId=snapshots \
+                -Durl=https://nexus.procesar.com.mx/nexus/repository/maven-snapshots/ \
+                -DgroupId=${{ env.REPOSITORY_NAME }} \
+                -DartifactId=${{ env.REPOSITORY_NAME }}-presentacion \
+                -Dversion=1.0.0-SNAPSHOT \
+                -Dpackaging=war \
+                -DrepositoryUsername=${{ secrets.NEXUS_USERNAME }} \
+                -DrepositoryPassword=${{ secrets.NEXUS_TOKEN }} \
+                -s ~/.m2/repository/settings.xml
+                
+              echo "Inicia despliegue en Weblogic Desarrollo "
+              java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+                -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+                -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+                -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+                -deploy -name ${{ env.REPOSITORY_NAME }}-web-1.0.0  -remote \
+                -source /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/${{ env.REPOSITORY_NAME }}-presentacion-1.0.0.war -upload \
+                -targets ${{ secrets.WEBLOGIC_CLUSTER_DEV }}
+              
+              echo "no-ejecutar-siguientes-pasos=true" >> $GITHUB_OUTPUT
+              echo "no-ejecutar-siguientes-pasos=true" >> $GITHUB_ENV
+              echo "Proceso terminado- Deploy con exito Weblogic Desarrollo primera version 1.0.0"
+                 
+            else
+              # este codigo es cuando el artefacto si existe, pero hay que validar si tiene o no version incluida en el nombre
+              echo "Command failed with exit code ${{ env.EXIT_CODE }}"
+              if [[ ! -z "${{ env.OUTPUT }}" ]]; then
+                salida=$(java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+                -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+                -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+                -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+                -listapps | grep "${{ env.REPOSITORY_NAME }}-presentacion*" )
+                echo "Artifact-name: $salida"
+                echo "artifact-name=$(echo $salida)" >> $GITHUB_OUTPUT
+                echo "artifact-name=$(echo $salida)" >> $GITHUB_ENV
+                versionado=$(echo "$salida" | gawk -F'-' '{print $NF}')
+                echo "versionado: $versionado"
+
+                if [ "$versionado" = "" ]; then
+                  echo "Significa que no hay version, se asigna version inicial 1.0.0, Nexus y luego undeploy/deploy de Weblogic (Escenario 2)"
+                  versionado="${versionado:-"1.0.0"}"
+                  echo "Versionado: $versionado"
+
+                  echo "Inicia carga de artefacto a Nexus" 
+                  repo_full_name="${{ github.repository }}"
+                  repo_name=$(echo "$repo_full_name" | cut -d '/' -f 2)
+                  ruta_target="/opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/"
+                  cd $ruta_target
+                  mvn deploy:deploy-file \
+                    -Dfile=${{ env.REPOSITORY_NAME }}-presentacion-1.0.0.war \
+                    -DrepositoryId=snapshots \
+                    -Durl=https://nexus.procesar.com.mx/nexus/repository/maven-snapshots/ \
+                    -DgroupId=${{ env.REPOSITORY_NAME }} \
+                    -DartifactId=${{ env.REPOSITORY_NAME }}-presentacion \
+                    -Dversion=1.0.0-SNAPSHOT \
+                    -Dpackaging=war \
+                    -DrepositoryUsername=${{ secrets.NEXUS_USERNAME }} \
+                    -DrepositoryPassword=${{ secrets.NEXUS_TOKEN }} \
+                    -s ~/.m2/repository/settings.xml
+
+                  echo "Inicia undeploy del artefacto"
+                  java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+                    -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+                    -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+                    -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+                    -undeploy -name ${{ env.REPOSITORY_NAME }}-presentacion-  -remote \
+                    -targets ${{ secrets.WEBLOGIC_CLUSTER_DEV }}
+
+                  echo "Esperando a que se complete el undeploy del artefacto en nodos del cluster..."
+                  sleep 15
+                  echo "Inicia despliegue en Weblogic Desarrollo"
+
+                  java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+                    -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+                    -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+                    -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+                    -deploy -name ${{ env.REPOSITORY_NAME }}-presentacion-1.0.0  -remote \
+                    -source /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/${{ env.REPOSITORY_NAME }}-presentacion-1.0.0.war -upload \
+                    -targets ${{ secrets.WEBLOGIC_CLUSTER_DEV }}
+
+                  echo "no-ejecutar-siguientes-pasos=true" >> $GITHUB_OUTPUT
+                  echo "no-ejecutar-siguientes-pasos=true" >> $GITHUB_ENV
+                  echo "Proceso terminado- Deploy con exito Weblogic Desarrollo- version 1.0.0"
+                  
+                else
+                
+                  echo "Significa que si hay version, se debe generar nueva version, Nexus y luego undeploy/deploy con nueva version plus (Escenario 3)"
+                  salida=$(java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+                    -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+                    -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+                    -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+                    -listapps | grep "${{ env.REPOSITORY_NAME }}-presentacion*" )
+                  echo "Artifact-name: $salida"
+                  versionado=$(echo "$salida" | gawk -F'-' '{print $NF}')
+                  echo "versionado: $versionado"
+                  echo "version-deployada=$versionado" >> $GITHUB_ENV
+                  echo "no-ejecutar-siguientes-pasos=false" >> $GITHUB_OUTPUT
+                  echo "no-ejecutar-siguientes-pasos=false" >> $GITHUB_ENV
+                  
+                fi
+              fi
+            fi 
+
+### Se carga el artefacto a GitHub con version 1.0.0
+### Este paso se realiza para disponer del artefacto en GitHub, pero con version en el nombre, NO con el nombre del branch
+      - name: Upload artifact w/1.0.0
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.REPOSITORY_NAME }}-presentacion-1.0.0.war
+          path: /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/${{ env.REPOSITORY_NAME }}-presentacion-1.0.0.war
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'true' }}     
+
+### Termina carga de artefacto a GitHub con version 1.0.0
+
+### Paso para el incremento automatico de version (versionamiento semantico)
+      - name: Increasing version, automatic
+        id: version-plus
+        run: |
+            TAG=$VERSION_ACTUAL  
+            TAG_PREFIX=${TAG%-snapshot}  # Elimina la palabra "snapshot" al final del tag
+            TAG_SUFFIX=${TAG#"$TAG_PREFIX"}  # Obtiene la parte del tag después del prefijo
+        
+            if [[ "$TAG" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+                major="${BASH_REMATCH[1]}"
+                minor="${BASH_REMATCH[2]}"
+                patch="${BASH_REMATCH[3]}"
+        
+                # Incrementar el patch hasta llegar a 9
+                if [[ "$patch" -lt 9 ]]; then
+                    patch=$((patch + 1))
+                else
+                    # Incrementar el minor y reiniciar el patch a 0
+                    if [[ "$minor" -lt 9 ]]; then
+                        minor=$((minor + 1))
+                        patch=0
+                    else 
+                        # Incrementar el major, reiniciar el minor y el patch a 0
+                        if [[ "$major" -lt 9 ]]; then
+                            major=$((major + 1))
+                            minor=0
+                            patch=0
+                        fi
+                    fi
+                fi
+                NEWVERSION="$major.$minor.$patch"
+                echo "NEWVERSION=$NEWVERSION" >> $GITHUB_OUTPUT
+                echo "NEWVERSION: $NEWVERSION"
+            else 
+                echo "El tag no tiene el formato esperado"
+                exit 1
+            fi
+        
+        env:
+            VERSION_ACTUAL: ${{ env.version-deployada }}
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+
+      - name: Echo output of version-plus
+        run: echo "NEWVERSION:${{ steps.version-plus.outputs.NEWVERSION }}"
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+
+      - name: List artifact w/NEWVERSION
+        run: |
+          cd /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts
+          ls -la
+          cp ${{ env.REPOSITORY_NAME }}-presentacion-${{ env.BRANCH_NAME }}.war ${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}.war
+          ls -la
+  
+      - name: Send to Nexus , next Undeploy/deploy (new_version)
+        run: |
+           echo "Inicia carga de artefacto a Nexus Snapshot con nueva version" 
+           repo_full_name="${{ github.repository }}"
+           repo_name=$(echo "$repo_full_name" | cut -d '/' -f 2)
+           ruta_target="/opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/"
+           cd $ruta_target
+           cp ${{ env.REPOSITORY_NAME }}-presentacion-${{ env.BRANCH_NAME }}.war ${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}.war
+           cd $ruta_target
+           ls -la
+           mvn deploy:deploy-file \
+               -Dfile=${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}.war \
+               -DrepositoryId=snapshots \
+               -Durl=https://nexus.procesar.com.mx/nexus/repository/maven-snapshots/ \
+               -DgroupId=${{ env.REPOSITORY_NAME }} \
+               -DartifactId=${{ env.REPOSITORY_NAME }}-presentacion \
+               -Dversion=${{ steps.version-plus.outputs.NEWVERSION }}-SNAPSHOT \
+               -Dpackaging=war \
+               -DrepositoryUsername=${{ secrets.NEXUS_USERNAME }} \
+               -DrepositoryPassword=${{ secrets.NEXUS_TOKEN }} \
+               -s ~/.m2/repository/settings.xml 
+           
+           echo "Inicia undeploy del artefacto que estaba (version anterior)" 
+           java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+             -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+             -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+             -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+             -undeploy -name ${{ env.REPOSITORY_NAME }}-presentacion-${{ env.version-deployada }}  -remote \
+             -targets ${{ secrets.WEBLOGIC_CLUSTER_DEV }}
+
+           echo "Esperando a que se complete el undeploy del artefacto..."
+           sleep 15
+           echo "nuevaVersion: ${{ steps.version-plus.outputs.NEWVERSION }}"
+           
+           echo "Inicia deploy del artefacto con nueva version" 
+           java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+             -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+             -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+             -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+             -deploy -name ${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}  -remote \
+             -source /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}.war -upload \
+             -targets ${{ secrets.WEBLOGIC_CLUSTER_DEV }}
+
+           echo "Esperando a que se complete el deploy del artefacto en los nodos del cluster Desarrollo..."
+           
+           echo "Proceso terminado -Deploy con exito Weblogic Desarrollo- version ${{ steps.version-plus.outputs.NEWVERSION }}"      
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+        
+### Termina bloque de despliegue hacia el weblogic Desarrollo.
+
+### Se carga el artefacto a GitHub con nueva version
+      - name: Upload artifact w/new version
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}.war
+          path: /opt/middleware/actions-runner/_work/${{ env.REPOSITORY_NAME }}/${{ env.REPOSITORY_NAME }}/downloaded-artifacts/${{ env.REPOSITORY_NAME }}-presentacion-${{ steps.version-plus.outputs.NEWVERSION }}.war
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}  
+
+### Inicia bloque para borrar versiones anteriores en Nexus y solo subir la ultima version
+
+      - name: Set up environment (cleaning Nexus)
+        run: |
+          sudo yum install -y jq
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+
+      - name: Check Artifact exists in weblogic to get version (cleaning Nexus)
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}  
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_TOKEN }}
+          NEXUS_URL: ${{ secrets.NEXUS_URL_PRE }}
+          NEXUS_REPOSITORY: ${{ secrets.NEXUS_REPOSITORY_PRE }}
+          NEXUS_GROUP: ${{ env.REPOSITORY_NAME }}
+        run: |
+          salida=$(java -cp ${{ secrets.WEBLOGIC_RUTA_DEPLOYER_DEV }} weblogic.Deployer \
+                -adminurl ${{ secrets.WEBLOGIC_HOST_DEV }} \
+                -username ${{ secrets.WEBLOGIC_USERNAME_DEV }} \
+                -password ${{ secrets.WEBLOGIC_PASSWORD_DEV }} \
+                -listapps | grep "${{ env.REPOSITORY_NAME }}-presentacion*" | sed 's/^$/0/' )
+
+          echo "Salida = $salida "
+          if [[ $salida = 0 ]]; then
+                versionado = "1.0.0"           
+          else
+                echo "Artifact-name: $salida"
+                echo "artifact-name=$(echo $salida)" >> $GITHUB_OUTPUT
+                versionado=$(echo "$salida" | gawk -F'-' '{print $NF}')
+                echo "versionado: $versionado"
+          fi
+
+          # Define funciones de comparacion de X.Y.Z (versionamiento semantico)
+          version_lt() {
+              IFS='.' read -r -a ver1 <<< "$1"
+              IFS='.' read -r -a ver2 <<< "$2"
+              for i in {0..2}; do
+                  v1=${ver1[$i]:-0}
+                  v2=${ver2[$i]:-0}
+                  if ! [[ $v1 =~ ^[0-9]+$ ]] || ! [[ $v2 =~ ^[0-9]+$ ]]; then
+                      echo "Formato de versión inválido: $v1 o $v2"
+                      return 1
+                  fi
+                  if [ "$v1" -lt "$v2" ]; then
+                      return 0
+                    elif [ "$v1" -gt "$v2" ]; then
+                        return 1
+                  fi
+              done
+              return 1 # Las versiones son iguales o la primera no es menor, la condición no se cumplió.
+          }
+
+          version_gt() {
+              IFS='.' read -r -a ver1 <<< "$1"
+              IFS='.' read -r -a ver2 <<< "$2"
+              for i in {0..2}; do
+                  v1=${ver1[$i]:-0}
+                  v2=${ver2[$i]:-0}
+                  if ! [[ $v1 =~ ^[0-9]+$ ]] || ! [[ $v2 =~ ^[0-9]+$ ]]; then
+                      echo "Formato de versión inválido: $v1 o $v2"
+                      return 1
+                  fi
+                  if [ "$v1" -gt "$v2" ]; then
+                      return 0
+                    elif [ "$v1" -lt "$v2" ]; then
+                        return 1
+                  fi
+              done
+              return 1  # Las versiones son iguales o la primera no es mayor, la condición no se cumplió.
+          }
+          
+          response=$(curl -u $NEXUS_USERNAME:$NEXUS_PASSWORD -s "$NEXUS_URL/service/rest/v1/search/assets?repository=$NEXUS_REPOSITORY&group=$NEXUS_GROUP" -H "accept: application/json")
+          versions=$(echo $response | jq -r '.items[].maven2.version')
+
+          # Obtener la versión más reciente
+          latest_version=$(echo "$versions" | sort -V | tail -n 1)
+          echo "Última versión en Nexus: $latest_version"
+
+          # Eliminar versiones anteriores
+          for version in $versions; do
+             base_version=$(echo "$version" | awk -F'-' '{print $1}')
+             if [[ $base_version =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] && version_lt "$base_version" "$versionado" && ! version_gt "$base_version" "$latest_version"; then
+                  echo "Eliminando versión: $version"
+                  asset_ids=$(curl -s -u "$NEXUS_USERNAME:$NEXUS_PASSWORD" \
+                      "$NEXUS_URL/service/rest/v1/search/assets?repository=$NEXUS_REPOSITORY&group=$NEXUS_GROUP&version=$version" | \
+                      jq -r '.items[].id')
+                  for asset_id in $asset_ids; do
+                      if [[ -n "$asset_id" ]]; then
+                          curl -s -u "$NEXUS_USERNAME:$NEXUS_PASSWORD" -X DELETE "$NEXUS_URL/service/rest/v1/assets/$asset_id"
+                      else
+                          echo "No se encontró ningún artefacto en Nexus para la versión $version"
+                      fi
+                  done
+             else
+                  echo "La versión $version no es menor que la versión actual ($versionado) o es la más reciente, no se eliminará."
+             fi
+          done
+        if: ${{ env.no-ejecutar-siguientes-pasos == 'false' }}
+          
+### Termina bloque para borrar versiones anteriores en Nexus, dejando solo la ultima que se desplegó.
