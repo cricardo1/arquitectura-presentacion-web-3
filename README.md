@@ -1,6 +1,6 @@
-# 🏗️ Arquetipo Arquitectura REST - 3 Capas
+# 🏗️ Arquetipo Arquitectura Presentación Web - 3 Capas
 
-Arquitectura de referencia para el desarrollo de aplicaciones REST con Spring Boot 2.1.8.RELEASE y Java 11, siguiendo principios de arquitectura limpia y separación de responsabilidades en tres capas: persistencia, servicios y exposición.
+Arquitectura de referencia para el desarrollo de aplicaciones web con Spring Boot 2.1.8.RELEASE y Java 11, siguiendo principios de arquitectura limpia y separación de responsabilidades en tres capas: presentación, servicios y persistencia.
 
 ## 📋 Tabla de Contenidos
 
@@ -19,72 +19,87 @@ Arquitectura de referencia para el desarrollo de aplicaciones REST con Spring Bo
 ## ✨ Características Principales
 
 ### 🏛️ Arquitectura en 3 Capas
-- **Persistencia**: Acceso a datos con Spring Data JPA 2.1.x
+- **Presentación**: Capa web con Thymeleaf, controladores MVC y recursos estáticos
 - **Servicios**: Lógica de negocio independiente y desacoplada
-- **Exposición**: API REST con Spring MVC
+- **Persistencia**: Acceso a datos con Spring Data JPA
 
 ### 🛠️ Características Técnicas
 - **Lenguaje**: Java 11 (LTS)
 - **Framework**: Spring Boot 2.1.8.RELEASE
-- **Persistencia**: Spring Data JPA + Hibernate 6.0+
-- **Base de Datos**: Soporte para Oracle H2 (pruebas)
-- **Seguridad**: Spring Security con JWT
-- **Validación**: Bean Validation 3.0
-- **Logging**: Logback con MDC
-- **Pruebas**: JUnit 5, Mockito, Testcontainers
+- **Capa Web**: Spring MVC con Thymeleaf 3
+- **Persistencia**: Spring Data JPA + Hibernate
+- **Base de Datos**: Soporte para H2, MySQL, PostgreSQL
+- **Seguridad**: Spring Security
+- **Validación**: Bean Validation
+- **Logging**: SLF4J con Logback
+- **Pruebas**: JUnit 5, Mockito
 - **Contenedorización**: Soporte para Docker
 
 ### 📦 Módulos Principales
-- **persistencia**: Entidades, repositorios y configuración de acceso a datos
+- **presentacion**: Controladores, vistas Thymeleaf y recursos estáticos
 - **servicios**: Lógica de negocio y casos de uso
-- **exposición**: Controladores REST, DTOs y configuración web
+- **persistencia**: Entidades, repositorios y configuración de acceso a datos
+- **comun**: Utilidades, constantes y configuraciones compartidas
+- **seguridad**: Configuración de autenticación y autorización
 
 ## 💻 Requisitos del Sistema
 
 - **Java Development Kit (JDK)**: 11 (LTS)
-- **Maven**: 3.8+ o Gradle 8.0+
+- **Maven**: 3.6+ o Gradle 6.0+
 - **Docker** (opcional, para despliegue en contenedores)
-- **Base de Datos**: Oracle 12c+, PostgreSQL 9.6+, MySQL 5.7+, o H2 (para desarrollo)
+- **Base de Datos**: H2 (incluida), MySQL 5.7+, PostgreSQL 10+
 - **IDE**: IntelliJ IDEA, Eclipse, VS Code con extensiones de Java/Spring
 
 ## 🏗️ Estructura del Proyecto
 
 ```
 ${projectName}/
-├── ${projectName}-persistencia/     # Capa de persistencia
-│   ├── src/
-│   │   ├── main/java/persistencia/
-│   │   │   ├── config/           # Configuración de persistencia
-│   │   │   ├── entity/           # Entidades JPA
-│   │   │   ├── repository/       # Repositorios Spring Data
-│   │   │   └── dto/              # DTOs de persistencia
-│   │   └── resources/            # Configuración y recursos
-│   └── pom.xml
-│
-├── ${projectName}-servicios/      # Capa de servicios
-│   ├── src/
-│   │   ├── main/java/servicios/
-│   │   │   ├── config/           # Configuración de servicios
-│   │   │   ├── dto/              # DTOs de negocio
-│   │   │   ├── exception/        # Excepciones personalizadas
-│   │   │   ├── mapper/           # Mapeadores (MapStruct)
-│   │   │   └── service/          # Lógica de negocio
-│   │   └── resources/            # Configuración y recursos
-│   └── pom.xml
-│
-├── ${projectName}-exposicion/    # Capa de exposición
-│   ├── src/
-│   │   ├── main/java/exposicion/
-│   │   │   ├── config/           # Configuración web y seguridad
-│   │   │   ├── controller/       # Controladores REST
-│   │   │   ├── dto/              # DTOs de API
-│   │   │   └── exception/        # Manejo de excepciones HTTP
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/example/web/
+│   │   │       ├── presentacion/           # Capa de presentación
+│   │   │       │   ├── controller/         # Controladores MVC
+│   │   │       │   ├── dto/                # Objetos de transferencia de datos
+│   │   │       │   └── validator/          # Validadores personalizados
+│   │   │       │
+│   │   │       ├── servicios/             # Capa de servicios
+│   │   │       │   ├── impl/               # Implementaciones de servicios
+│   │   │       │   ├── mapper/              # Mapeadores de objetos
+│   │   │       │   └── exception/           # Excepciones personalizadas
+│   │   │       │
+│   │   │       ├── persistencia/          # Capa de persistencia
+│   │   │       │   ├── entity/              # Entidades JPA
+│   │   │       │   ├── repository/          # Repositorios Spring Data
+│   │   │       │   └── specification/       # Especificaciones para consultas
+│   │   │       │
+│   │   │       ├── comun/                 # Componentes comunes
+│   │   │       │   ├── util/                # Utilidades
+│   │   │       │   ├── constants/           # Constantes
+│   │   │       │   └── config/              # Configuraciones
+│   │   │       │
+│   │   │       └── seguridad/             # Configuración de seguridad
+│   │   │           ├── config/              # Configuración de Spring Security
+│   │   │           └── service/             # Servicios de seguridad
+│   │   │
 │   │   └── resources/
-│   │       ├── static/           # Recursos estáticos
-│   │       └── application.yml    # Configuración de la aplicación
-│   └── pom.xml
+│   │       ├── static/                 # Recursos estáticos (CSS, JS, imágenes)
+│   │       ├── templates/               # Plantillas Thymeleaf
+│   │       ├── i18n/                    # Archivos de internacionalización
+│   │       └── application.properties   # Configuración de la aplicación
+│   │
+│   └── test/                      # Pruebas unitarias e integración
+│       └── java/
+│           └── com/example/web/
+│               ├── presentacion/
+│               ├── servicios/
+│               └── persistencia/
 │
-└── pom.xml                       # POM raíz del proyecto
+├── pom.xml                      # Configuración de Maven
+├── .gitignore                   # Archivos ignorados por Git
+├── mvnw                         # Maven Wrapper (Unix)
+├── mvnw.cmd                     # Maven Wrapper (Windows)
+└── README.md                   # Documentación del proyecto
 ```
 
 ## 🚀 Primeros Pasos
@@ -92,116 +107,327 @@ ${projectName}/
 ### Requisitos Previos
 
 1. Asegúrate de tener instalado:
-   - JDK 17 o superior
-   - Maven 3.8+ o Gradle 8.0+
+   - JDK 11
+   - Maven 3.6+ o Gradle 6.0+
    - Opcional: Docker y Docker Compose
 
 2. Clona el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/arquitectura-exposicion-rest-3.git
-   cd arquitectura-exposicion-rest-3
+   git clone https://github.com/tu-usuario/arquitectura-presentacion-web-3.git
+   cd arquitectura-presentacion-web-3
    ```
 
-### Instalación del Arquetipo
+### Instalación y Ejecución
 
-1. Instala el arquetipo en tu repositorio local de Maven:
+1. Compila el proyecto con Maven:
    ```bash
-   mvn clean install
+   ./mvnw clean install
+   # o en Windows
+   mvnw.cmd clean install
    ```
 
-2. Verifica que el arquetipo se haya instalado correctamente:
+2. Ejecuta la aplicación:
    ```bash
-   mvn archetype:generate -DarchetypeCatalog=local
+   ./mvnw spring-boot:run
+   # o en Windows
+   mvnw.cmd spring-boot:run
    ```
-   Deberías ver el arquetipo en la lista mostrada.
+   
+3. Abre tu navegador en http://localhost:8080 para ver la aplicación en funcionamiento.
 
 ## 🏭 Generación de Nuevos Proyectos
 
-### Usando Maven
+### Usando Spring Initializr
+
+1. Visita [Spring Initializr](https://start.spring.io/)
+2. Configura tu proyecto:
+   - Project: Maven
+   - Language: Java
+   - Spring Boot: 2.1.8.RELEASE
+   - Group: com.example
+   - Artifact: web-app
+   - Name: web-app
+   - Description: Aplicación web con arquitectura de 3 capas
+   - Package name: com.example.webapp
+   - Packaging: Jar
+   - Java: 11
+
+3. Añade las dependencias:
+   - Spring Web
+   - Thymeleaf
+   - Spring Data JPA
+   - H2 Database
+   - Spring Security
+   - Validation
+   - Lombok (opcional)
+
+4. Haz clic en "Generate" para descargar el proyecto base
+
+### Usando Maven Archetype
 
 ```bash
 mvn archetype:generate \
-  -DarchetypeGroupId=mx.com.procesar.servicios.internos \
-  -DarchetypeArtifactId=arquitectura-exposicion-rest-3 \
+  -DarchetypeGroupId=com.example \
+  -DarchetypeArtifactId=arquitectura-presentacion-web-3 \
   -DarchetypeVersion=1.0.0 \
   -DgroupId=com.tudominio \
-  -DartifactId=mi-proyecto \
+  -DartifactId=mi-proyecto-web \
   -Dversion=1.0.0-SNAPSHOT \
-  -Dpackage=com.tudominio.miproyecto \
-  -DprojectName=MiProyecto \
   -DinteractiveMode=false
 ```
 
 ### Parámetros del Arquetipo
 
 | Parámetro         | Descripción                                   | Valor por Defecto        |
-|-------------------|-----------------------------------------------|--------------------------|
+|-------------------|-----------------------------------------------|---------------------------|
 | groupId          | Identificador del grupo Maven                 | Requerido                |
 | artifactId       | Identificador del artefacto Maven             | Requerido                |
 | version          | Versión del proyecto                          | 1.0.0-SNAPSHOT          |
 | package          | Paquete base Java                            | Basado en groupId        |
 | projectName      | Nombre legible del proyecto                   | Basado en artifactId     |
-| rootArtifactId   | ID raíz del proyecto (sin sufijo)             | Basado en artifactId     |
 
 
 ## ⚙️ Configuración
 
-### Configuración de Base de Datos
+### Configuración de la Aplicación
 
-El archivo `application.yml` en el módulo de exposición contiene la configuración de la base de datos:
+El archivo `application.properties` (o `application.yml`) contiene la configuración principal de la aplicación:
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password: password
-    driver-class-name: org.h2.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
+```properties
+# Configuración del servidor
+server.port=8080
+server.servlet.context-path=/app
+
+# Configuración de Thymeleaf
+spring.thymeleaf.cache=false
+spring.thymeleaf.mode=HTML
+
+# Configuración de la base de datos
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=password
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+
+# Configuración de JPA
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+# Configuración de logging
+logging.level.root=INFO
+logging.level.com.example=DEBUG
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
 ```
 
-### Configuración de Swagger/OpenAPI
+### Perfiles de Spring Boot
 
-La documentación de la API está disponible en:
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- OpenAPI JSON: http://localhost:8080/v3/api-docs
+Puedes definir diferentes configuraciones para distintos entornos usando perfiles:
+
+```properties
+# application-dev.properties
+spring.datasource.url=jdbc:h2:mem:devdb
+logging.level.com.example=DEBUG
+
+# application-prod.properties
+spring.datasource.url=jdbc:mysql://localhost:3306/proddb
+spring.datasource.username=root
+spring.datasource.password=root
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
+logging.level.com.example=INFO
+spring.thymeleaf.cache=true
+```
+
+Para activar un perfil específico:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
 
 ## 🚀 Despliegue
 
-### Despliegue Local
+### Construcción para Producción
 
-1. Ejecuta la aplicación con Maven:
+1. Genera el archivo JAR ejecutable:
    ```bash
-   mvn spring-boot:run -pl mi-proyecto-exposicion
+   ./mvnw clean package -DskipTests
+   # o en Windows
+   mvnw.cmd clean package -DskipTests
    ```
 
-2. La aplicación estará disponible en: http://localhost:8080
+2. El archivo JAR se generará en el directorio `target/`
+
+3. Ejecuta la aplicación en producción:
+   ```bash
+   java -jar target/mi-aplicacion-web-1.0.0.jar --spring.profiles.active=prod
+   ```
 
 ### Despliegue con Docker
 
-1. Construye las imágenes de Docker:
+1. Construye la imagen de Docker:
    ```bash
-   docker-compose build
+   docker build -t mi-aplicacion-web .
    ```
 
-2. Inicia los contenedores:
+2. Inicia el contenedor:
    ```bash
-   docker-compose up -d
+   docker run -p 8080:8080 mi-aplicacion-web
    ```
+
+### Despliegue con Docker Compose
+
+Puedes utilizar Docker Compose para desplegar la aplicación junto con sus dependencias:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/webappdb
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      - db
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_DATABASE=webappdb
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - db-data:/var/lib/mysql
+volumes:
+  db-data:
+```
+
+Ejecución:
+```bash
+docker-compose up -d
+```
 
 ## 🧪 Pruebas
 
 ### Ejecutar Pruebas Unitarias
 
 ```bash
-mvn test
+./mvnw test
+# o en Windows
+mvnw.cmd test
+```
+
+### Ejecutar Pruebas con Cobertura
+
+```bash
+./mvnw test jacoco:report
+# o en Windows
+mvnw.cmd test jacoco:report
+```
+
+El informe de cobertura se generará en `target/site/jacoco/index.html`
+
+### Tipos de Pruebas
+
+#### Pruebas Unitarias
+
+```java
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+@SpringBootTest
+public class UsuarioServiceTest {
+
+    @Autowired
+    private UsuarioService usuarioService;
+
+    @Test
+    public void testBuscarPorId() {
+        // Given
+        Long id = 1L;
+        
+        // When
+        Usuario usuario = usuarioService.buscarPorId(id);
+        
+        // Then
+        assertNotNull(usuario);
+        assertEquals(id, usuario.getId());
+    }
+}
+```
+
+#### Pruebas de Controladores
+
+```java
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+
+@WebMvcTest(UsuarioController.class)
+public class UsuarioControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private UsuarioService usuarioService;
+
+    @Test
+    public void testListarUsuarios() throws Exception {
+        mockMvc.perform(get("/usuarios"))
+               .andExpect(status().isOk())
+               .andExpect(view().name("usuarios/lista"));
+    }
+}
+```
+
+#### Pruebas de Integración
+
+```java
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ActiveProfiles("test")
+public class UsuarioRepositoryTest {
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Test
+    public void testBuscarPorEmail() {
+        // Given
+        String email = "usuario@ejemplo.com";
+        
+        // When
+        Usuario usuario = usuarioRepository.findByEmail(email);
+        
+        // Then
+        assertNotNull(usuario);
+        assertEquals(email, usuario.getEmail());
+    }
+}
 ```
 
 ### Ejecutar Pruebas de Integración
@@ -258,8 +484,8 @@ Desarrollado con ❤️ por [Tu Nombre] - [@tucuenta](https://github.com/tucuent
 
 1. **Clonar el repositorio**:
    ```bash
-   git clone https://github.com/tu-usuario/arquitectura-exposicion-rest-3.git
-   cd arquitectura-exposicion-rest-3
+   git clone https://github.com/cricardo1/arquitectura-presentacion-web-3.git
+   cd arquitectura-presentacion-web-3
    ```
 
 2. **Ejecutar el gestor de arquetipos**:
@@ -320,9 +546,9 @@ ${projectName}/
 │   │   └── resources/            # Recursos específicos del servicio
 │   └── pom.xml
 │
-├── ${projectName}-exposicion/     # Capa de exposición (API REST)
+├── ${projectName}-presentacion/     # Capa de exposición (API REST)
 │   ├── src/
-│   │   ├── main/java/exposicion/
+│   │   ├── main/java/presentacion/
 │   │   │   ├── config/           # Configuración de la API
 │   │   │   ├── controller/        # Controladores REST
 │   │   │   └── exception/        # Manejo de excepciones
@@ -339,7 +565,7 @@ ${projectName}/
 ```bash
 mvn archetype:generate \
   -DarchetypeGroupId=mx.com.procesar.servicios.internos \
-  -DarchetypeArtifactId=arquitectura-exposicion-rest-3 \
+  -DarchetypeArtifactId=arquitectura-presentacion-web-3 \
   -DarchetypeVersion=1.0.0 \
   -DgroupId=com.tudominio \
   -DartifactId=mi-proyecto \
@@ -369,7 +595,7 @@ mvn archetype:generate \
 2. **Crear nuevo proyecto**:
    - **File > New > Maven Project**
    - Selecciona el catálogo local
-   - Elige `arquitectura-exposicion-rest-3`
+   - Elige `arquitectura-presentacion-web-3`
    - Completa los parámetros requeridos
 
 ### IntelliJ IDEA
@@ -390,7 +616,7 @@ mvn archetype:generate \
 
 2. **Problemas con Maven**
    - Limpia la caché: `mvn clean install -U`
-   - Elimina la carpeta `.m2/repository/mx/com/procesar/servicios/internos/arquitectura-exposicion-rest-3` y vuelve a instalar
+   - Elimina la carpeta `.m2/repository/mx/com/procesar/servicios/internos/arquitectura-presentacion-web-3` y vuelve a instalar
 
 3. **El arquetipo no aparece en el catálogo**
    - Verifica que el arquetipo esté instalado correctamente en el repositorio local
@@ -423,7 +649,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
    - En el diálogo, selecciona **Maven > Maven Project** y haz clic en **Next**
    - En la pantalla "Select project name and location", asegúrate de que **Create a simple project** NO esté seleccionado y haz clic en **Next**
    - En la pantalla "Select an Archetype", selecciona "Arquetipos Locales" en el desplegable "Catalog"
-   - Busca y selecciona el arquetipo `mx.com.procesar.servicios.internos:arquitectura-exposicion-rest-3`
+   - Busca y selecciona el arquetipo `mx.com.procesar.servicios.internos:arquitectura-presentacion-web-3`
    - Haz clic en **Next**
    - Completa los parámetros del arquetipo:
      - **Group Id**: mx.com.procesar.servicios.internos (o el que desees usar)
@@ -432,14 +658,14 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
      - **Package**: se rellenará automáticamente, pero puedes modificarlo
    - Haz clic en **Finish**
 
-### Método 2: Usando el Script arquetipo-rest-manager.bat
+### Método 2: Usando el Script arquetipo-presentacion-manager.bat
 
 El arquetipo incluye un script que facilita la generación de proyectos desde la línea de comandos:
 
-1. Ejecuta el archivo `arquetipo-rest-manager.bat`:
+1. Ejecuta el archivo `arquetipo-presentacion-manager.bat`:
 
    ```batch
-   D:\proyectos\arquitectura-exposicion-rest-3\arquetipo-rest-manager.bat
+   C:\arquitectura-presentacion-web-3\arquetipo-presentacion-manager.bat
    ```
 
 2. En el menú que aparece, selecciona la opción 2: "Generar nuevo proyecto".
@@ -465,7 +691,7 @@ Si prefieres usar Maven directamente, puedes ejecutar el siguiente comando:
 ```batch
 mvn archetype:generate -B \
   -DarchetypeGroupId=mx.com.procesar.servicios.internos \
-  -DarchetypeArtifactId=arquitectura-exposicion-rest-3 \
+  -DarchetypeArtifactId=arquitectura-presentacion-web-3 \
   -DarchetypeVersion=1.0.0 \
   -DgroupId=mx.com.procesar.servicios.internos \
   -DartifactId=miproyecto \
@@ -553,9 +779,9 @@ mi-proyecto/
 │   │   └── mx/com/procesar/servicios/internos/miproyecto/servicios/service/impl/
 │   │       └── AforeServiceImplTest.java
 │   └── pom.xml
-│── mi-proyecto-exposicion/
+│── mi-proyecto-presentacion/
 │   │── src/main/java/
-│   │   └── mx/com/procesar/servicios/internos/miproyecto/exposicion/
+│   │   └── mx/com/procesar/servicios/internos/miproyecto/presentacion/
 │   │       │── config/
 │   │       │   │── AppConfig.java
 │   │       │   └── OpenApiConfig.java
@@ -568,7 +794,7 @@ mi-proyecto/
 │   │── src/main/resources/
 │   │   └── application.properties
 │   │── src/test/java/
-│   │   └── mx/com/procesar/servicios/internos/miproyecto/exposicion/controller/
+│   │   └── mx/com/procesar/servicios/internos/miproyecto/presentacion/controller/
 │   │       └── AforeControllerTest.java
 │   └── pom.xml
 │── pom.xml
@@ -816,7 +1042,7 @@ Para ejecutar la aplicación generada:
 2. **Ejecución de la aplicación**:
 
    ```bash
-   cd mi-proyecto-exposicion
+   cd mi-proyecto-presentacion
    mvn spring-boot:run
    ```
 
