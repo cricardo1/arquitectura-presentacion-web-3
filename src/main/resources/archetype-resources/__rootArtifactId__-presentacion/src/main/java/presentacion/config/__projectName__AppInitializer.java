@@ -25,12 +25,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.commons.CommonsMultipartResolver;
+import org.springframework.web.multipart.MultipartResolver;
+import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 import org.springframework.web.servlet.ViewResolver;
-import org.springframework.web.servlet.config.annotation.DefaultServletHandlerConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
+import org.springframework.web.servlet.view.JstlView;
 
 import ${package}.${projectName.toLowerCase()}.persistencia.config.${projectName.substring(0,1).toUpperCase()}${projectName.substring(1)}PersistenceAppContext;
 import ${package}.${projectName.toLowerCase()}.servicios.config.${projectName.substring(0,1).toUpperCase()}${projectName.substring(1)}ServiceAppContext;
@@ -38,8 +40,8 @@ import ${package}.${projectName.toLowerCase()}.servicios.config.${projectName.su
 /**
  * Initializer de aplicativo web
  * @author Gerencia Servicios Normativos (GERENCIADESARROOLLONORMATIVO@inet.procesar.com.mx)
- * @version 2.0
- * @since
+ * @version 3.0
+ * @since Spring Boot 2.7.x
  */
 @Import({ ${projectName.substring(0,1).toUpperCase()}${projectName.substring(1)}PropertiesAppContext.class, ${projectName.substring(0,1).toUpperCase()}${projectName.substring(1)}PersistenceAppContext.class, ${projectName.substring(0,1).toUpperCase()}${projectName.substring(1)}ServiceAppContext.class })
 @ComponentScan(includeFilters = { 
@@ -70,15 +72,18 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
     }
 
     /**
-     * Configuracion del servlet por defecto
+     * Configuración de recursos estáticos
      */
     @Override
-    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
-        configurer.enable();
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/resources/**")
+                .addResourceLocations("/resources/");
+        registry.addResourceHandler("/webjars/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/");
     }
 
     /**
-     * Configuracion del resolver de vistas
+     * Configuración del resolver de vistas
      * 
      * @return ViewResolver
      */
@@ -87,19 +92,19 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
         InternalResourceViewResolver resolver = new InternalResourceViewResolver();
         resolver.setPrefix("/WEB-INF/views/");
         resolver.setSuffix(".jsp");
+        resolver.setViewClass(JstlView.class);
+        resolver.setExposeContextBeansAsAttributes(true);
         return resolver;
     }
 
     /**
-     * Configuracion del resolver de multipart
+     * Configuración del resolver de multipart (Spring Boot 2.7.x)
      * 
-     * @return CommonsMultipartResolver
+     * @return MultipartResolver
      */
     @Bean
-    public CommonsMultipartResolver multipartResolver() {
-        CommonsMultipartResolver resolver = new CommonsMultipartResolver();
-		resolver.setMaxUploadSize(9 * 1024 * 1024);
-        resolver.setDefaultEncoding("utf-8");
+    public MultipartResolver multipartResolver() {
+        StandardServletMultipartResolver resolver = new StandardServletMultipartResolver();
         return resolver;
     }
 }

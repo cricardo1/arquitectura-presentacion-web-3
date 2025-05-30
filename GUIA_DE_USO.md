@@ -1,6 +1,6 @@
 # Guía de Uso del Arquetipo arquitectura-presentacion-web-3
 
-Esta guía proporciona instrucciones detalladas para instalar y utilizar el arquetipo `arquitectura-presentacion-web-3` para crear nuevos proyectos REST con arquitectura de tres capas.
+Esta guía proporciona instrucciones detalladas para instalar y utilizar el arquetipo `arquitectura-presentacion-web-3` para crear nuevos proyectos WEB con arquitectura de tres capas.
 
 ## Índice
 1. [Instalación del Arquetipo](#1-instalación-del-arquetipo)
@@ -19,11 +19,11 @@ Esta guía proporciona instrucciones detalladas para instalar y utilizar el arqu
 
 ### Pasos para la Instalación
 
-1. Ejecuta el archivo `instalar-arquetipo.bat` incluido en este directorio:
-   - Haz doble clic en el archivo `instalar-arquetipo.bat`
+1. Ejecuta el archivo `arquetipo-presentacion-manager.bat` incluido en este directorio:
+   - Haz doble clic en el archivo `arquetipo-presentacion-manager.bat`
    - O abre una ventana de comandos y ejecuta:
      ```
-     D:\proyectos\arquitectura-presentacion-web-3\instalar-arquetipo.bat
+     D:\proyectos\arquitectura-presentacion-web-3\arquetipo-presentacion-manager.bat
      ```
 
 2. El script configurará las variables de entorno necesarias y ejecutará el comando Maven para instalar el arquetipo en tu repositorio local.

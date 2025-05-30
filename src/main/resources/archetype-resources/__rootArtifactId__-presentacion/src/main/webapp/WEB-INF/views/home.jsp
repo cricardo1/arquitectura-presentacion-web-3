@@ -1,5 +1,5 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" isELIgnored="false" %>
-<%@ taglib uri="jakarta.tags.core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
 <!DOCTYPE html>
 <html>
@@ -62,8 +62,8 @@
 <div class="container">
   <div class="jumbotron">
     <h1>Nuevo proyecto Bootstrap</h1> 
-    <p>Capa de Presentacion Arquitectura 3.0</p>
-    <p>${fecha}</p> 
+    <p>Capa de Presentacion Arquitectura Web 3.0</p>
+    <p>Fecha: ${fecha}</p>
   </div>  
 </div>
 	

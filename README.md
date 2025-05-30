@@ -490,20 +490,20 @@ Desarrollado con ❤️ por [Tu Nombre] - [@tucuenta](https://github.com/tucuent
 
 2. **Ejecutar el gestor de arquetipos**:
    ```bash
-   arquetipo-rest-manager.bat
+   arquetipo-presentacion-manager.bat
    ```
-   O haz doble clic en `arquetipo-rest-manager.bat` en el explorador de archivos.
+   O haz doble clic en `arquetipo-presentacion-manager.bat` en el explorador de archivos.
 
 3. **Seguir las instrucciones en pantalla** para completar la instalación.
 
 ## 🛠️ Uso del Gestor de Arquetipos
 
-El archivo `arquetipo-rest-manager.bat` proporciona una interfaz sencilla para gestionar el arquetipo:
+El archivo `arquetipo-presentacion-manager.bat` proporciona una interfaz sencilla para gestionar el arquetipo:
 
 1. **Menú Principal**:
    ```
    ==================================================
-    GESTOR DE ARQUETIPO REST 3 CAPAS v1.0
+    GESTOR DE ARQUETIPO WEB 3 CAPAS v1.0
    ==================================================
    
    1. Instalar y verificar arquetipo
@@ -546,11 +546,11 @@ ${projectName}/
 │   │   └── resources/            # Recursos específicos del servicio
 │   └── pom.xml
 │
-├── ${projectName}-presentacion/     # Capa de exposición (API REST)
+├── ${projectName}-presentacion/     # Capa de exposición (API WEB)
 │   ├── src/
 │   │   ├── main/java/presentacion/
 │   │   │   ├── config/           # Configuración de la API
-│   │   │   ├── controller/        # Controladores REST
+│   │   │   ├── controller/        # Controladores WEB
 │   │   │   └── exception/        # Manejo de excepciones
 │   │   └── resources/            # Configuración de la aplicación
 │   └── pom.xml
@@ -915,13 +915,13 @@ Para crear nuevas entidades siguiendo el mismo patrón:
 3. Crea el repositorio en el módulo de persistencia
 4. Crea la interfaz de servicio en el módulo de servicios
 5. Implementa el servicio en el módulo de servicios
-6. Crea el controlador REST en el módulo de exposición
+6. Crea el controlador REST en el módulo de presentacion
 7. Crea las clases de prueba para cada componente
 
 Una vez generado el proyecto, puedes personalizarlo según tus necesidades:
 
 1. **Configuración de la base de datos**:
-   - Modifica el archivo `application.properties` en el módulo de exposición para configurar la conexión a tu base de datos
+   - Modifica el archivo `application.properties` en el módulo de presentacion para configurar la conexión a tu base de datos
 
 2. **Entidades y repositorios**:
    - Crea tus propias entidades JPA en el paquete `entity` del módulo de persistencia
@@ -931,8 +931,8 @@ Una vez generado el proyecto, puedes personalizarlo según tus necesidades:
    - Crea DTOs para tus entidades en el paquete `dto` del módulo de servicios
    - Implementa interfaces de servicio en el paquete `service` y sus implementaciones en `service/impl`
 
-4. **API REST**:
-   - Crea controladores REST en el paquete `controller` del módulo de exposición
+4. **API REST/WEB**:
+   - Crea controladores REST / WEB en el paquete `controller` del módulo de presentacion
    - Documenta tus endpoints usando las anotaciones de OpenAPI/Swagger
 
 5. **Configuración adicional**:

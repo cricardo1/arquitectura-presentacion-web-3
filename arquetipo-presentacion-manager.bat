@@ -27,7 +27,7 @@ if %ERRORLEVEL% NEQ 0 (
 :MENU
 cls
 echo ===================================================
-echo  GESTOR DE ARQUETIPO REST 3 CAPAS v1.0
+echo  GESTOR DE ARQUETIPO WEB 3 CAPAS v1.0
 echo ===================================================
 echo.
 echo  1. Instalar y verificar arquetipo
@@ -127,6 +127,6 @@ goto MENU
 
 :SALIR
 echo.
-echo Gracias por usar el Gestor de Arquetipo REST 3 Capas.
+echo Gracias por usar el Gestor de Arquetipo Web 3 Capas.
 echo.
 exit /b 0

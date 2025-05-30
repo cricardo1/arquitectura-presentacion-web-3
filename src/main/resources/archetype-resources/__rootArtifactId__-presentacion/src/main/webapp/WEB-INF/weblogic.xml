@@ -7,7 +7,7 @@
 
 	<wls:context-root>${projectName.toLowerCase()}</wls:context-root>
 	
-	<container-descriptor>
+    <wls:container-descriptor>
         <wls:prefer-application-packages>
             <package-name>org.springframework.*</package-name>
             <package-name>org.hibernate.*</package-name>
@@ -16,6 +16,6 @@
             <package-name>org.slf4j.*</package-name>
         </wls:prefer-application-packages>
         <wls:show-archived-real-path-enabled>true</wls:show-archived-real-path-enabled>
-    </container-descriptor>
+    </wls:container-descriptor>
 
 </wls:weblogic-web-app>

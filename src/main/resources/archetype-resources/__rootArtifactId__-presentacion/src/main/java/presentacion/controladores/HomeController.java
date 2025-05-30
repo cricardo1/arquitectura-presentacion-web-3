@@ -12,7 +12,7 @@
  */
 package ${package}.${projectName.toLowerCase()}.presentacion.controladores;
 
-import java.util.Locale;
+import java.time.LocalDate;
 import org.slf4j.LoggerFactory;
 
 import org.slf4j.Logger;
@@ -36,13 +36,13 @@ public class HomeController {
 	/**
 	 * Regresa el control a la pagina de inicio
 	 * @author Gerencia Servicios Normativos (GERENCIADESARROOLLONORMATIVO@inet.procesar.com.mx)
-	 * @param locale
 	 * @param model
 	 * @return
 	 */
 	@GetMapping(value = "/")
-	public String home(Locale locale, Model model) {
+	public String home(Model model) {
 		logger.info("Ingreso a /home");
+		model.addAttribute("fecha", LocalDate.now());
 		return "home";
 	}
 
