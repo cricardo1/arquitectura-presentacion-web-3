@@ -33,7 +33,7 @@
 		<maven.compiler.target>11</maven.compiler.target>
 		<maven.compiler.release>11</maven.compiler.release>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<spring-boot.version>2.7.18</spring-boot.version>
+		<!--<spring-boot.version>2.7.18</spring-boot.version>-->
 	</properties>
 
 	<!-- módulos -->
@@ -45,15 +45,6 @@
 
 	<dependencyManagement>
 		<dependencies>
-
-			<!-- Spring Boot BOM -->
-			<dependency>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-dependencies</artifactId>
-				<version>${spring-boot.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
 
 			<!-- Módulos del proyecto -->
 			<dependency>

@@ -1,0 +1,75 @@
+/* Estilos personalizados para la integración de free-jqGrid con Bootstrap 5 */
+
+/* Ajustes generales para la tabla */
+.ui-jqgrid {
+    border: 1px solid rgba(0,0,0,.125);
+    border-radius: 0.25rem;
+    font-family: var(--bs-body-font-family);
+    font-size: var(--bs-body-font-size);
+}
+
+/* Cabecera de la tabla */
+.ui-jqgrid .ui-jqgrid-hdiv {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+.ui-jqgrid .ui-jqgrid-htable th {
+    background-color: #f8f9fa;
+    color: #212529;
+    font-weight: 500;
+    padding: 0.5rem;
+}
+
+/* Filas de la tabla */
+.ui-jqgrid .ui-jqgrid-btable {
+    border-left: none;
+}
+
+.ui-jqgrid tr.jqgrow td {
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+/* Paginador */
+.ui-jqgrid .ui-pg-table {
+    font-size: 0.875rem;
+}
+
+.ui-jqgrid .ui-pg-button {
+    border: 1px solid #dee2e6;
+    background-color: #fff;
+    color: #0d6efd;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    margin: 0 0.125rem;
+}
+
+.ui-jqgrid .ui-pg-button:hover {
+    background-color: #e9ecef;
+}
+
+/* Iconos */
+.ui-jqgrid .ui-icon {
+    font-size: 0.875rem;
+}
+
+/* Filas seleccionadas */
+.ui-jqgrid tr.ui-state-highlight {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* Leyenda */
+.ui-jqgrid .ui-jqgrid-caption {
+    font-weight: 500;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ui-jqgrid .ui-jqgrid-btable {
+        table-layout: auto;
+    }
+}

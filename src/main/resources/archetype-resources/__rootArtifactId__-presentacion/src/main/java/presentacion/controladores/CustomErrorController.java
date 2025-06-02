@@ -59,7 +59,11 @@ public class CustomErrorController implements ErrorController {
         return "error";
     }
 
+	/**
+	 * Retorna la ruta para el manejo de errores
+	 * @return Ruta de error
+	 */
 	public String getErrorPath() {
-        return "/error";
+		return "/error";
 	}
 }

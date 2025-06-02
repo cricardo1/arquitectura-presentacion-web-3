@@ -78,6 +78,8 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/resources/**")
                 .addResourceLocations("/resources/");
+        registry.addResourceHandler("/webResources/**")
+                .addResourceLocations("/webResources/");
         registry.addResourceHandler("/webjars/**")
                 .addResourceLocations("classpath:/META-INF/resources/webjars/");
     }

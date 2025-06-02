@@ -94,6 +94,18 @@
                         <exclude>**/*.js</exclude>
                         <exclude>**/*.map</exclude>
                         <exclude>**/*.min.js</exclude>
+                        <exclude>**/*.jsp</exclude>
+                        <exclude>**/*.ttf</exclude>
+                        <exclude>**/*.woff</exclude>
+                        <exclude>**/*.woff2</exclude>
+                        <exclude>**/*.eot</exclude>
+                        <exclude>**/*.svg</exclude>
+                        <exclude>**/*.ico</exclude>
+                        <exclude>**/*.png</exclude>
+                        <exclude>**/*.jpg</exclude>
+                        <exclude>**/*.jpeg</exclude>
+                        <exclude>**/*.gif</exclude>
+                        <exclude>**/*.pdf</exclude>
                     </excludes>
                 </fileSet>
                 <fileSet filtered="false" encoding="UTF-8">
@@ -102,6 +114,18 @@
                         <include>**/*.js</include>
                         <include>**/*.map</include>
                         <include>**/*.min.js</include>
+                        <include>**/*.jsp</include>
+                        <include>**/*.ttf</include>
+                        <include>**/*.woff</include>
+                        <include>**/*.woff2</include>
+                        <include>**/*.eot</include>
+                        <include>**/*.svg</include>
+                        <include>**/*.ico</include>
+                        <include>**/*.png</include>
+                        <include>**/*.jpg</include>
+                        <include>**/*.jpeg</include>
+                        <include>**/*.gif</include>
+                        <include>**/*.pdf</include>
                     </includes>
                 </fileSet>
                 <fileSet filtered="true" packaged="true" encoding="UTF-8">
