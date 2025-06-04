@@ -72,7 +72,7 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
     }
 
     /**
-     * Configuración de recursos estáticos
+     * Configuracion de recursos estoticos
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -85,7 +85,7 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
     }
 
     /**
-     * Configuración del resolver de vistas
+     * Configuracion del resolver de vistas
      * 
      * @return ViewResolver
      */
@@ -100,7 +100,7 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
     }
 
     /**
-     * Configuración del resolver de multipart (Spring Boot 2.7.x)
+     * Configuracion del resolver de multipart (Spring Boot 2.7.x)
      * 
      * @return MultipartResolver
      */

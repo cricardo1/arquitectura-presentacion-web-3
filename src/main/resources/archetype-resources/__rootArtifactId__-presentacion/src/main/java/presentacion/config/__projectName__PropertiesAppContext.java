@@ -14,8 +14,6 @@ package ${package}.${projectName.toLowerCase()}.presentacion.config;
 
 import java.nio.file.Paths;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.PropertiesFactoryBean;
@@ -23,6 +21,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.io.FileSystemResource;
+//import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.LogManager;
 
 
 /**
@@ -77,11 +77,11 @@ public class ${projectName.substring(0,1).toUpperCase()}${projectName.substring(
 	 */
 	@Bean
 	public void log4j2() {
-		LoggerContext context = (LoggerContext) LogManager.getContext(false);
+//		LoggerContext context = (LoggerContext) LogManager.getContext(false);
 		StringBuilder rutaLog4JConfig = new StringBuilder();
 		rutaLog4JConfig.append(System.getProperty(VARIABLE_PROPIEDADES)).append(NOMBRE_ARCHIVO_LOG4J2);
-		context.setConfigLocation(Paths.get(rutaLog4JConfig.toString()).toUri());
-		context.reconfigure();
+//		context.setConfigLocation(Paths.get(rutaLog4JConfig.toString()).toUri());
+//		context.reconfigure();
 		LOGGER.info("Reconfiguracion de Log4j2 activa");
 	}
 
